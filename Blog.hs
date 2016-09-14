@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+module Blog where
 
 import Control.Applicative.Free
 import Control.Applicative
