@@ -1,32 +1,75 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GADTs #-}
 
 module StaticAnalysis where
 
 import Control.Applicative.Free
+import Control.Applicative
 
-data ExpF x = Val Int
-            | Add (ExpF x) (ExpF x)
-            deriving (Functor, Show)
+type Author = String
+type Comment = String
+type Post = String
+type Id = Int
 
-type Exp x = Ap ExpF x
+-- Our ADT
+data BlogF a where
+    GetPost :: Id -> BlogF Post
+    GetAuthor :: Id -> BlogF Author
+    GetComments :: Id -> BlogF [(Comment, Author)]
+
+-- A page of the blog, that will consist of a post and its author
+data Page = Page {
+    post :: Post,
+    author :: Author,
+    comments :: [(Comment, Author)]
+} deriving Show
+
+-- Our Free Applicative
+type Blog a = Ap BlogF a
 
 instance Monoid Int where
-    mempty  = 0
+    mempty = 0
     mappend = (+)
 
-analyze :: ExpF a -> Int
-analyze (Val i) = 1
-analyze (Add p q) = analyze p + analyze q
+getPost :: Id -> Blog Post
+getPost id = liftAp $ GetPost id
 
-eval :: ExpF a -> Int
-eval (Val i) = i
-eval (Add p q) = eval p + eval q
+getAuthor :: Id -> Blog Author
+getAuthor id = liftAp $ GetAuthor id
 
-expression1 :: Exp x
-expression1 = liftAp $ Add (Add (Add (Val 1) (Val 2)) (Val 3)) (Val 4)
+getComments :: Id -> Blog [(Comment, Author)]
+getComments id = liftAp $ GetComments id
+
+renderPage :: Id -> Id -> Blog Page
+renderPage post author = Page <$> getPost post
+                              <*> getAuthor author
+                              <*> getComments post
+
+
+interpIO :: BlogF a -> IO a
+interpIO (GetPost id) = putStrLn ("getting post " ++ show id ++ " from DB") *> pure "this is the post"
+interpIO (GetAuthor id) = putStrLn ("getting author " ++ show id ++ " from DB") *> pure "@pepe"
+interpIO (GetComments id) = putStrLn ("getting comments for post " ++ show id ++ " from DB")
+    *> pure [
+        ("this post rocks", "@anler"),
+        ("you're right, @anler", "@lorenzo"),
+        ("Oh boy, I love haskell so bad!", "@dani"),
+        ("Indeed, Haskell is better than Erlang!", "@joseluis")
+    ]
+
+countInstructions :: BlogF a -> Int
+countInstructions (GetPost _) = 1
+countInstructions (GetAuthor _) = 1
+countInstructions (GetComments _) = 1
+
 
 main :: IO ()
 main = do
-    putStrLn "expression 1"
-    print $ runAp_ eval expression1
-    print $ runAp_ analyze expression1
+    putStrLn "NUMBER OF REQUESTS TO THE DB:"
+    print instructions
+    putStrLn ""
+    putStrLn "PAGE RENDERING:"
+    page <- runAp interpIO page
+    print page
+        where instructions = runAp_ countInstructions page
+              page = renderPage 1 1
