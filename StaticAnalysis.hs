@@ -58,9 +58,7 @@ interpIO (GetComments id) = putStrLn ("getting comments for post " ++ show id ++
     ]
 
 countInstructions :: BlogF a -> Int
-countInstructions (GetPost _) = 1
-countInstructions (GetAuthor _) = 1
-countInstructions (GetComments _) = 1
+countInstructions _ = 1
 
 
 main :: IO ()
